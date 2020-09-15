@@ -1,0 +1,1 @@
+# paradyme-gcp-terraform
