@@ -8,14 +8,17 @@ II. Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform file structure\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-III. GCP GKE\
+III. GCP\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. GCP project creation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Local installation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. Service accounts and permissions\
-&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+&nbsp;&nbsp;&nbsp;&nbsp;B. Networking\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. VPC and Firewall\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Google DNS\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i. Domain creation\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii. DNS zone creation\
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iii. Creating a records in Terraform\
 \
 IV. Kubernetes\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
@@ -42,10 +45,7 @@ VII. Ingresses\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform Kuberenetes Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-IX. Domain set-up and Google DNS\
+IX. Ngnix-Ingress
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Setting up a domain\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. GCP DNS zone creation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. Adding a GCP record set in Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
