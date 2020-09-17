@@ -56,7 +56,7 @@ VII. Ingresses\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform Kuberenetes Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-IX. Ngnix-Ingress
+VIII. Ngnix-Ingress
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
