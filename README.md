@@ -19,11 +19,13 @@ III. GCP\
 
 &nbsp;&nbsp;&nbsp;&nbsp;After creating the GCP project and adding the necessary APIs the next step is to create credentials for the project. Inside of the API & Services tab click the “+ create credentials” button and create service account credentials for the project. Be sure to give the account owner level permissions to the project. Once the service account has been created click on it and scroll down to add a key to the account. Choose JSON format and the key will automatically download. Move this file to inside of your Terraform folder on the same level as your main.tf file. Inside of your variables.tf add:  
 
-&nbsp;&nbsp;&nbsp;&nbsp;variable "credentials_file" { 
+```
+"credentials_file" { 
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;default = "your-credential-file.json" 
+  default = "your-credential-file.json" 
 
-&nbsp;&nbsp;&nbsp;&nbsp;} 
+} 
+```
 
 &nbsp;&nbsp;&nbsp;&nbsp;Once this is complete, the initial set-up for your GCP project should be complete. If at any point you are struggling with Kubernetes cluster role bindings make sure the service account associated with the “client_email” within your credentials JSON file has owner level permission inside of your GCP project. (Permission can be changed by going to the IAM tab within your GCP project and locating the correct service account). 
 
@@ -120,11 +122,57 @@ That secret could now be used on the the various services in the GKE cluster.  T
 
 \
 IV. Helm\
-&nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Pulling charts from repos\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Helm and Terraform\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. Adjusting chart values in Terraform\
-&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+&nbsp;&nbsp;&nbsp;&nbsp;A. Helm Charts\
+&nbsp;&nbsp;&nbsp;&nbsp;For all of the services we want to create on our cluster we are going to Helm charts. Helm charts are files that help define, create and manage Kubernetes applications. This saves us from having to create and define each service individually. You can read more about helm charts [here](https://helm.sh/). 
+
+&nbsp;&nbsp;&nbsp;&nbsp;For things like updating dependencies you will need to install Helm locally, [here](https://helm.sh/docs/intro/install/) is a guide on how to do that.  
+
+&nbsp;&nbsp;&nbsp;&nbsp;The two primary Helm charts we will be using are the NGINX Ingress Helm chart and the Spring Cloud Data Flow Helm Chart. The Spring Cloud Data Flow itself contains many different services which also have their own Helm charts. We have included versions of both the NGINX Ingress Helm chart and the Spring Cloud Data Flow Chart inside of the repository. It may be necessary to update the dependencies for these charts. To do so, simple navigate into the charts folder and run the command “helm dependency update” from the command prompt. If you would like to download the most recent version of the Helm charts the NGING Ingress Helm chart can be found [here](https://github.com/kubernetes/ingress-nginx/tree/master/charts/ingress-nginx) and the Spring Cloud Data Flow Helm chart can be found [here](https://github.com/helm/charts/tree/master/stable/spring-cloud-data-flow). 
+
+&nbsp;&nbsp;&nbsp;&nbsp;B. Helm Charts in Terraform\
+&nbsp;&nbsp;&nbsp;&nbsp;Luckily for us, Terraform provides us with a tool to install Helm charts within our main.tf file. That tool is the “helm” provider. As you can see, all the helm provider needs is the GKE cluster information and credentials returned from Google. After we set up the provider for each Helm chart we want to install on our cluster we can create a “helm_release” resource. Accordingly, we have two helm_resources in this main.tf file, one for the NGINX Ingress and one for Spring Cloud Data Flow. For each helm_resource make sure the “provider” is set to helm.your_provider (“your_provider” being whatever “alias” you declared in your “helm” provider resource). And the “chart” variable should be set to the location of the Helm chart you wish to install. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;Upon occasion it will be necessary to overwrite the values in the values.yaml file of a given Helm chart. For example, for this deployment we wanted to use Kafka for our Spring Cloud Data Flow and not RabbitMQ, which is the default. The easiest way to do this is by setting the “values” parameter on the “helm_release resource. The basic syntax looks like this: 
+```
+values = [ 
+
+    <<EOF     
+
+    EOF 
+
+  ] 
+```
+
+ 
+
+&nbsp;&nbsp;&nbsp;&nbsp;For example, to install Kafka instead of RabbitMQ we set the values like so: 
+
+ 
+```
+  values = [ 
+
+    <<EOF 
+
+      kafka: 
+
+        enabled: true 
+
+        persistence: 
+
+          size: 20Gi 
+
+      rabbitmq: 
+
+        enabled: false 
+
+    EOF 
+
+  ] 
+```
+ 
+&nbsp;&nbsp;&nbsp;&nbsp;C. Creating Promethues Login\
+&nbsp;&nbsp;&nbsp;&nbsp;Inside of our "helm_release" "nginx-ingress" you will notice inside of the values parameter we set some Prometheus related values. Because Prometheus itself does not come with the ability to add a username and password login, we the NGINX Ingress itself to restrict access to the Prometheus service. The second part of this equation is the "kubernetes_secret" "basic-auth" resource which allows us to create an auth file with a username and password to grant access to the Prometheus service. The final part of creating a login for the Promethues services in include in section VII regarding the kubernetes_ingress resource. The contents for a new auth file can be generated [here](https://hostingcanada.org/htpasswd-generator/) using any username and password combination you like. You can simply replace the content of the existing auth file with the SHA1 code generated from the website.  
+
 \
 V. Spring Cloud Data Flow\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
