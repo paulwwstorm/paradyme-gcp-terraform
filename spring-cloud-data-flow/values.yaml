@@ -1,0 +1,356 @@
+# Default values for spring-cloud-data-flow.
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the serviceAccountName template
+  name:
+
+initContainers:
+  dbWait:
+    image: "busybox"
+    tag: "1.30.1"
+    imagePullPolicy: IfNotPresent
+
+server:
+  image: springcloud/spring-cloud-dataflow-server
+  version: 2.5.1.RELEASE
+  imagePullPolicy: IfNotPresent
+  platformName: default
+  trustCerts: false
+  service:
+    type: LoadBalancer
+    externalPort: 80
+    annotations: {}
+    labels: {}
+    loadBalancerSourceRanges: []
+  configMap:
+  resources: {}
+  #  limits:
+  #    cpu: 1.0
+  #    memory: 2048Mi
+  #  requests:
+  #    cpu: 0.5
+  #    memory: 640Mi
+  extraEnv: {}
+  containerConfiguration: {}
+  #  container:
+  #    registry-configurations:
+  #      default:
+  #        registry-host: registry-1.docker.io
+  #        authorization-type: dockeroauth2
+
+skipper:
+  enabled: true
+  image: springcloud/spring-cloud-skipper-server
+  version: 2.4.1.RELEASE
+  imagePullPolicy: IfNotPresent
+  platformName: default
+  trustCerts: false
+  service:
+    type: ClusterIP
+    annotations: {}
+    labels: {}
+  configMap:
+  resources: {}
+  #  limits:
+  #    cpu: 1.0
+  #    memory: 1024Mi
+  #  requests:
+  #    cpu: 0.5
+  #    memory: 640Mi
+  extraEnv: {}
+
+deployer:
+  resourceLimits:
+    cpu: 500m
+    memory: 1024Mi
+  readinessProbe:
+    initialDelaySeconds: 120
+  livenessProbe:
+    initialDelaySeconds: 90
+
+rabbitmq:
+  enabled: true
+  rabbitmq:
+    username: user
+    # this value will be encoded into a secret
+    password: changeme
+
+rabbitmq-ha:
+  enabled: false
+  rabbitmqUsername: user
+
+kafka:
+  enabled: false
+  replicas: 1
+  configurationOverrides:
+    "offsets.topic.replication.factor": 1
+    "confluent.support.metrics.enable": false
+  zookeeper:
+    replicaCount: 1
+
+mysql:
+  enabled: true
+  mysqlDatabase: dataflow
+
+## If you are using an external database,
+## you must specify the following database details
+database:
+  driver:
+  scheme:
+  host:
+  port:
+  user: scdf
+  password:
+  dataflow: dataflow
+  skipper: skipper
+
+features:
+  streaming:
+    enabled: true
+  batch:
+    enabled: true
+  monitoring:
+    enabled: false
+
+## If you are using an ingress server then you can override the following
+## default values to create an Ingress resource
+ingress:
+  enabled: false
+  server:
+    host: data-flow.local
+  grafana:
+    host: grafana.local
+  protocol: https
+
+grafana:
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    labels:
+      app: grafana
+      chart: grafana-4.5.0
+      heritage: Tiller
+    name: scdf-grafana
+    namespace: default
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: grafana
+        release: jedi-pipes
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        annotations:
+          checksum/config: ddb339589d7266358db99948d0e908ad3c1aa77c84fca0caa0b4dcc960dbc58c
+          checksum/dashboards-json-config: 6fdb03ee4c849b67b857cba8a91dfe457234fda94d418bd5031444972648206a
+          checksum/sc-dashboard-provider-config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        creationTimestamp: null
+        labels:
+          app: grafana
+          release: jedi-pipes
+      spec:
+        containers:
+          - env:
+              - name: GF_SECURITY_ADMIN_USER
+                valueFrom:
+                  secretKeyRef:
+                    key: admin-user
+                    name: scdf-grafana-secret
+              - name: GF_SECURITY_ADMIN_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    key: admin-password
+                    name: scdf-grafana-secret
+            image: grafana/grafana:6.6.0
+            imagePullPolicy: IfNotPresent
+            livenessProbe:
+              failureThreshold: 10
+              httpGet:
+                path: /api/health
+                port: 3000
+                scheme: HTTP
+              initialDelaySeconds: 60
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 30
+            name: grafana
+            ports:
+              - containerPort: 80
+                name: service
+                protocol: TCP
+              - containerPort: 3000
+                name: grafana
+                protocol: TCP
+            readinessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /api/health
+                port: 3000
+                scheme: HTTP
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /etc/grafana/grafana.ini
+                name: config
+                subPath: grafana.ini
+              - mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+                name: scdf-grafana-ds-cm
+                readOnly: true
+                subPath: datasources.yaml
+              - mountPath: /var/lib/grafana
+                #name: storage
+                name: grafana-storage
+              - mountPath: /etc/grafana/provisioning/dashboards/dashboardproviders.yaml
+                name: config
+                subPath: dashboardproviders.yaml
+        dnsPolicy: ClusterFirst
+        initContainers:
+          - args:
+              - -c
+              - mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh
+            command:
+              - /bin/sh
+            image: appropriate/curl:latest
+            imagePullPolicy: IfNotPresent
+            name: download-dashboards
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+            volumeMounts:
+              - mountPath: /etc/grafana/download_dashboards.sh
+                name: config
+                subPath: download_dashboards.sh
+              - mountPath: /var/lib/grafana
+                #name: storage
+                name: grafana-storage
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext:
+          fsGroup: 472
+          runAsUser: 472
+        serviceAccount: jedi-pipes-grafana
+        serviceAccountName: jedi-pipes-grafana
+        terminationGracePeriodSeconds: 30
+        volumes:
+          - configMap:
+              defaultMode: 420
+              name: jedi-pipes-grafana
+            name: config
+          - configMap:
+              defaultMode: 420
+              name: scdf-grafana-ds-cm
+            name: scdf-grafana-ds-cm
+          - configMap:
+              defaultMode: 420
+              name: jedi-pipes-grafana-dashboards-default
+            name: dashboards-default
+          - emptyDir: {}
+            name: storage
+          - persistentVolumeClaim:
+              claimName: grafana-storage
+            name: grafana-storage
+  service:
+    type: LoadBalancer
+  admin:
+    existingSecret: scdf-grafana-secret
+    userKey: admin-user
+    passwordKey: admin-password
+    defaultUsername: YWRtaW4=
+    defaultPassword: cGFzc3dvcmQ=
+  extraConfigmapMounts:
+    - name: scdf-grafana-ds-cm
+      mountPath: /etc/grafana/provisioning/datasources/datasources.yaml
+      subPath: datasources.yaml
+      configMap: scdf-grafana-ds-cm
+      readOnly: true
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder:
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      scdf-applications:
+        url: https://raw.githubusercontent.com/spring-cloud/spring-cloud-dataflow/master/src/grafana/prometheus/docker/grafana/dashboards/scdf-applications.json
+      scdf-streams:
+        url: https://raw.githubusercontent.com/spring-cloud/spring-cloud-dataflow/master/src/grafana/prometheus/docker/grafana/dashboards/scdf-streams.json
+      scdf-task-batch:
+        url: https://raw.githubusercontent.com/spring-cloud/spring-cloud-dataflow/master/src/grafana/prometheus/docker/grafana/dashboards/scdf-task-batch.json
+
+prometheus:
+  podSecurityPolicy:
+    enabled: true
+  alertmanager:
+    enabled: false
+  kubeStateMetrics:
+    enabled: false
+  nodeExporter:
+    enabled: false
+  pushgateway:
+    enabled: false
+  server:
+    global:
+      scrape_interval: 10s
+      scrape_timeout: 9s
+      evaluation_interval: 10s
+  extraScrapeConfigs: |
+    - job_name: 'proxied-applications'
+      metrics_path: '/metrics/connected'
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - {{ .Release.Namespace }}
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          action: keep
+          regex: prometheus-proxy
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          action: keep
+          regex: 8080
+    - job_name: 'proxies'
+      metrics_path: '/metrics/proxy'
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - {{ .Release.Namespace }}
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          action: keep
+          regex: prometheus-proxy
+        - source_labels: [__meta_kubernetes_pod_container_port_number]
+          action: keep
+          regex: 8080
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+  proxy:
+    service:
+      type: LoadBalancer
