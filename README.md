@@ -183,11 +183,30 @@ V. Spring Cloud Data Flow\
 \
 &nbsp;&nbsp;&nbsp;&nbsp;The Spring Cloud Data Flow Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/spring-cloud-data-flow.  The corresponding folder for the chart would then be copied into the Terraform directory\
 \
-VI. Ingresses\
-&nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Helm ngnix-ingress\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform Kuberenetes Ingress\
-&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+VI. Kubernetes Ingresses\
+&nbsp;&nbsp;&nbsp;&nbsp;In addition to the NGINX Ingress we installed using Helm charts we also created a separate Ingress for the Prometheus service. We do this using the "kubernetes_ingress" "scdf_prometheus_ingress" resource. The first thing you will notice is these annotations:  
+
+``` 
+
+   annotations = { 
+
+      "kubernetes.io/ingress.class" = "nginx" 
+
+      "nginx.ingress.kubernetes.io/auth-type" = "basic" 
+
+      "nginx.ingress.kubernetes.io/auth-secret" = "basic-auth" 
+
+      "nginx.ingress.kubernetes.io/auth-realm" = "Authentication Required - prometheus" 
+
+      "cert-manager.io/cluster-issuer" = "letsencrypt-staging" 
+
+    } 
+
+``` 
+
+&nbsp;&nbsp;&nbsp;&nbsp;This is the last part of our three step solution to create a username and password login for our Prometheus service.  
+
+&nbsp;&nbsp;&nbsp;&nbsp;Another thing to note is the “spec: backend: service_name” which must be set to the name of the service once it is created on the cluster. You can find this name on the GCP console after you have deployed the Spring Cloud Data Flow using the Helm chart. The same name should be used for the “spec: rule: http: path: backend: service_name” parameter. The only other important parameters her are the “spec: rule: host” and the “spec: tls: hosts” which should be set to “prometheus.your-domain.com” (Although you could theoretically put whatever name you want in front of “your-domain.com”). 
 \
 VII. Nginx-Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
