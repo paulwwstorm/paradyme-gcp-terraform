@@ -4,8 +4,16 @@
 \
 II. Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
+\
+&nbsp;&nbsp;&nbsp;&nbsp;
+
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Local installation\
+
+&nbsp;&nbsp;&nbsp;&nbsp;To install Terraform on the local machine, the installation instructions can be found in https://learn.hashicorp.com/tutorials/terraform/install-cli.
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform file structure\
+
+&nbsp;&nbsp;&nbsp;&nbsp;When setting up Terraform, create a folder in which Terraform would derive the configuration for the infrastructure from.  The core file in the Terraform directory would be the main.tf file.  
+
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
 III. GCP\
@@ -39,32 +47,89 @@ III. GCP\
 
 &nbsp;&nbsp;&nbsp;&nbsp;To make sure that Ingresses created within our Terraform file are connected to the DNS zone we just created we can add an A Record  using the “google_dns_record_set” “a” resource. For the “name” variable enter * (to ensure that all of your different services can be made available) followed by “.domain-name.com.” (be sure to include the trailing period). The “managed_zone” is simply the name of the DNS zone we just created on our project. And finally the rrdatas will be the IP address assigned to the NGINX Ingress we created earlier within our main.tf file. Google will use this IP address to funnel traffic from the domain to the ingress which will then re-direct to the specific services in your GKE cluster.  
 \
-IV. Kubernetes\
-&nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Local installation\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Cluster role bindings and clustmer management\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. Kubectl and Terraform\
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4. Kubernetes secrets and Terraform\
-&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+
+&nbsp;&nbsp;&nbsp;&nbsp;D. GKE (Google Kubernetes Engine)
+
+&nbsp;&nbsp;&nbsp;&nbsp;A provider would be created for kubernetes and kubectl to set up the resources to create the kubernetes cluster.  Examples of the kubernetes and kubectl providers would be:
+
+provider "kubernetes" {
+  config_context_cluster = google_container_cluster.default.name
+  load_config_file       = false
+  host                   = "https://${google_container_cluster.default.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.default.master_auth.0.cluster_ca_certificate)
+}
+
+provider "kubectl" {
+  config_context_cluster = google_container_cluster.default.name
+  load_config_file       = false
+  host                   = "https://${google_container_cluster.default.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.default.master_auth.0.cluster_ca_certificate)
+}
+
+When those providers have been initialized in the main.tf file, resources that are generated from the providers can be configured as well.  
+
+&nbsp;&nbsp;&nbsp;&nbsp;Kubernetes cluster role bindings would define the role and permissions that the user would have with the service project and therefore the GKE.  An example of a kubernetes cluster role binding would be:
+
+resource "kubernetes_cluster_role_binding" "role_binding" {
+  metadata {
+    name = "terraform-role-binding"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin"
+  }
+  subject {
+    kind      = "User"
+    name      = "648264313207-compute@developer.gserviceaccount.com"
+    api_group = ""
+    namespace = "default"
+  }
+  
+}
+
+&nbsp;&nbsp;&nbsp;&nbsp;Terraform sometimes does not have the equivalent resource to replicate some of the Kubernetes yaml files.  To work around this, the kubectl resource can be used to apply the yaml files.  First a directory for the yaml files would need to be created in the Terraform directory, typically it would be named kubernetes.  Then the yaml files that do not have a Terraform equivalent would be added into the directory, and they would be applied by the resources below.
+
+data "kubectl_filename_list" "manifests" {
+    pattern = "./kubernetes/*.yaml"
+}
+ 
+resource "kubectl_manifest" "kubernetes_cert" {
+    count = length(data.kubectl_filename_list.manifests.matches)
+    yaml_body = file(element(data.kubectl_filename_list.manifests.matches, count.index))
+}
+
+&nbsp;&nbsp;&nbsp;&nbsp;Secrets
+
 \
-V. Helm\
+IV. Helm\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Pulling charts from repos\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Helm and Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3. Adjusting chart values in Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-VI. Spring Cloud Data Flow\
+V. Spring Cloud Data Flow\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
+
+&nbsp;&nbsp;&nbsp;&nbsp;Spring Cloud Data Flow is generated through the Spring Cloud Data Flow Helm Chart.  Adding the Helm Chart to the Terraform directory would allow Terraform to locate it when specified to be used in the main.tf file.  The Spring Cloud Data Flow Helm Chart has multiple subcharts within it, including Grafana and Prometheus.  These would generate the Grafana and Prometheus services as well when the Spring Cloud Data Flow service is generated.
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+
+&nbsp;&nbsp;&nbsp;&nbsp;The Spring Cloud Data Flow Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/spring-cloud-data-flow.  The corresponding folder for the chart would then be copied into the Terraform directory
 \
-VII. Ingresses\
+VI. Ingresses\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Helm ngnix-ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform Kuberenetes Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-VIII. Ngnix-Ingress
+VII. Nginx-Ingress
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
+
+&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would create the Nginx-Ingress controller that would be the load-balancer in which the Spring Cloud Data Flow services can connect to.  Through this controller, the services would be able to be accessed from an outside user by searching the urls corresponding to the ingress destinations.
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+
+&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/nginx-ingress.  The corresponding folder for the chart would then be copied into the Terraform directory
 \
