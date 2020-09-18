@@ -5,11 +5,9 @@
 II. Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Local installation\
-
 &nbsp;&nbsp;&nbsp;&nbsp;To install Terraform on the local machine, the installation instructions can be found in https://learn.hashicorp.com/tutorials/terraform/install-cli.
 \
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform file structure\
-
 &nbsp;&nbsp;&nbsp;&nbsp;When setting up Terraform, create a folder in which Terraform would derive the configuration for the infrastructure from.  The core file in the Terraform directory would be the main.tf file.  
 
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
@@ -44,7 +42,6 @@ III. GCP\
 &nbsp;&nbsp;&nbsp;&nbsp;The final major piece of Google infrastructure we will be using inside of this project is Google’s DNS service. We will use the DNS to provide external access to our services through the browser.  So the first step in this process is to set up a domain! If you would like to create a free domain for the purposes of testing you can use this website: https://www.freenom.com. After creating your free domain navigate to Network Services > Cloud DNS within your GCP project. Click “create zone”. Name the zone whatever you would like and copy in the domain you got from freenom into the DNS name. Once your zone is created click on it and you should see four googledomains. Find your domain and click “Manage Domain” > “Management Tools” > “Nameservers”. Copy the four googledomains into the first four name server spaces. With this your domain is connected to your GCP project.  
 
 &nbsp;&nbsp;&nbsp;&nbsp;To make sure that Ingresses created within our Terraform file are connected to the DNS zone we just created we can add an A Record  using the “google_dns_record_set” “a” resource. For the “name” variable enter * (to ensure that all of your different services can be made available) followed by “.domain-name.com.” (be sure to include the trailing period). The “managed_zone” is simply the name of the DNS zone we just created on our project. And finally the rrdatas will be the IP address assigned to the NGINX Ingress we created earlier within our main.tf file. Google will use this IP address to funnel traffic from the domain to the ingress which will then re-direct to the specific services in your GKE cluster.  
-\
 
 &nbsp;&nbsp;&nbsp;&nbsp;D. GKE (Google Kubernetes Engine)
 
@@ -84,7 +81,7 @@ resource "kubernetes_cluster_role_binding" "role_binding" {
   }
   subject {
     kind      = "User"
-    name      = "648264313207-compute@developer.gserviceaccount.com"
+    name      = "617377547426-compute@developer.gserviceaccount.com"
     api_group = ""
     namespace = "default"
   }
@@ -94,6 +91,7 @@ resource "kubernetes_cluster_role_binding" "role_binding" {
 
 &nbsp;&nbsp;&nbsp;&nbsp;Terraform sometimes does not have the equivalent resource to replicate some of the Kubernetes yaml files.  To work around this, the kubectl resource can be used to apply the yaml files.  First a directory for the yaml files would need to be created in the Terraform directory, typically it would be named kubernetes.  Then the yaml files that do not have a Terraform equivalent would be added into the directory, and they would be applied by the resources below.
 
+```
 data "kubectl_filename_list" "manifests" {
   pattern = "./kubernetes/*.yaml"
 }
@@ -102,18 +100,15 @@ resource "kubectl_manifest" "kubernetes_cert" {
     count = length(data.kubectl_filename_list.manifests.matches)
     yaml_body = file(element(data.kubectl_filename_list.manifests.matches, count.index))
 }
+```
 
 &nbsp;&nbsp;&nbsp;&nbsp;Kubernetes secrets can be added to services ran under GKE through the kubenetes_secret resource.  The secret will allow passwords to be added to the services, for example, in this instance a username and password was added to the Prometheus service.  To do this, an htpasswd file was generated online and added to the Terraform directory.  After adding that, the kubernetes_secret resource was added to main.tf, looking like below:
 
 ```
 resource "kubernetes_secret" "basic-auth" {
   metadata {
-        name      = "some-secret"
+        name      = "basic-auth"
         namespace = "default"
-        labels = {
-          "sensitive" = "true"
-          "app"       = "prometheus"
-        }
       }
   data = {
     "auth" = file("./auth")
@@ -133,11 +128,12 @@ IV. Helm\
 \
 V. Spring Cloud Data Flow\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-
-&nbsp;&nbsp;&nbsp;&nbsp;Spring Cloud Data Flow is generated through the Spring Cloud Data Flow Helm Chart.  Adding the Helm Chart to the Terraform directory would allow Terraform to locate it when specified to be used in the main.tf file.  The Spring Cloud Data Flow Helm Chart has multiple subcharts within it, including Grafana and Prometheus.  These would generate the Grafana and Prometheus services as well when the Spring Cloud Data Flow service is generated.
+\
+&nbsp;&nbsp;&nbsp;&nbsp;Spring Cloud Data Flow is generated through the Spring Cloud Data Flow Helm Chart.  Adding the Helm Chart to the Terraform directory would allow Terraform to locate it when specified to be used in the main.tf file.  The Spring Cloud Data Flow Helm Chart has multiple subcharts within it, including Grafana and Prometheus.  These would generate the Grafana and Prometheus services as well when the Spring Cloud Data Flow service is generated.\
+\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
-
-&nbsp;&nbsp;&nbsp;&nbsp;The Spring Cloud Data Flow Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/spring-cloud-data-flow.  The corresponding folder for the chart would then be copied into the Terraform directory
+\
+&nbsp;&nbsp;&nbsp;&nbsp;The Spring Cloud Data Flow Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/spring-cloud-data-flow.  The corresponding folder for the chart would then be copied into the Terraform directory\
 \
 VI. Ingresses\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
@@ -145,11 +141,11 @@ VI. Ingresses\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform Kuberenetes Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
 \
-VII. Nginx-Ingress
+VII. Nginx-Ingress\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-
-&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would create the Nginx-Ingress controller that would be the load-balancer in which the Spring Cloud Data Flow services can connect to.  Through this controller, the services would be able to be accessed from an outside user by searching the urls corresponding to the ingress destinations.
-&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
-
-&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/nginx-ingress.  The corresponding folder for the chart would then be copied into the Terraform directory
 \
+&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would create the Nginx-Ingress controller that would be the load-balancer in which the Spring Cloud Data Flow services can connect to.  Through this controller, the services would be able to be accessed from an outside user by searching the urls corresponding to the ingress destinations.\
+\
+&nbsp;&nbsp;&nbsp;&nbsp;B. Tools\
+\
+&nbsp;&nbsp;&nbsp;&nbsp;The Nginx-Ingress Helm Chart would have to be pulled from the helm chart repo by performing a helm pull stable/nginx-ingress.  The corresponding folder for the chart would then be copied into the Terraform directory
