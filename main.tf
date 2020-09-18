@@ -38,7 +38,7 @@ resource "google_compute_firewall" "firewall" {
 }
 
 resource "google_container_cluster" "default" {
-  name               = "paul-storm"
+  name               = "${var.name}-cluster"
   location           = var.location
 
   master_auth {
@@ -138,7 +138,7 @@ resource "helm_release" "nginx-ingress" {
           location: /
           auth_basic: "Prometheus"
           auth_basic_user_file: /kubernetes/nginx/.htpasswd
-          proxy_pass: https://prometheus.storm200825.tk/        
+          proxy_pass: https://prometheus.your-domain.com/        
     EOF
   ]
 }
@@ -178,9 +178,9 @@ resource "helm_release" "spring-cloud-data-flow" {
         enabled: true
         protocol: http
         server:
-          host: "dataflow.storm200825.tk"
+          host: "dataflow.your-domain.com"
         grafana:
-          host: "grafana.storm200825.tk"
+          host: "grafana.your-domain.com"
     EOF
   ]
 
@@ -215,7 +215,7 @@ resource "kubernetes_ingress" "scdf_prometheus_ingress" {
     }
 
     rule {
-      host  = "prometheus.storm200825.tk"
+      host  = "prometheus.your-domain.com"
       http {
         path {
           backend {
@@ -229,7 +229,7 @@ resource "kubernetes_ingress" "scdf_prometheus_ingress" {
     }
 
     tls {
-      hosts       = ["prometheus.storm200825.tk"]
+      hosts       = ["prometheus.your-domain.com"]
       secret_name = "tls-secret"
     }
   }
@@ -263,8 +263,8 @@ resource "kubectl_manifest" "kubernetes_webhooks" {
 }
 
 resource "google_dns_record_set" "a" {
-  name         = "*.storm200825.tk."
-  managed_zone = "storm200825"
+  name         = "*.your-domain.com."
+  managed_zone = "your-GCP-DNS-zone"
   type         = "A"
   ttl          = 300
 

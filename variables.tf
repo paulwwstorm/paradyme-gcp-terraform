@@ -1,13 +1,13 @@
 variable "name" {
-    default = "mucius-storm"
+    default = "choose-a-name"
 }
 
 variable "credentials_file" {
-    default = "storm200914-3a334348b3da.json"
+    default = "your-credentials.json"
 }
 
 variable "project" {
-    default = "storm200914"
+    default = "your-GCP-project-name"
 }
 
 variable "location" {
