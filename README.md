@@ -4,12 +4,10 @@
 \
 II. Terraform\
 &nbsp;&nbsp;&nbsp;&nbsp;A. Implementation\
-\
-&nbsp;&nbsp;&nbsp;&nbsp;
-
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Local installation\
 
 &nbsp;&nbsp;&nbsp;&nbsp;To install Terraform on the local machine, the installation instructions can be found in https://learn.hashicorp.com/tutorials/terraform/install-cli.
+\
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Terraform file structure\
 
 &nbsp;&nbsp;&nbsp;&nbsp;When setting up Terraform, create a folder in which Terraform would derive the configuration for the infrastructure from.  The core file in the Terraform directory would be the main.tf file.  
@@ -52,6 +50,7 @@ III. GCP\
 
 &nbsp;&nbsp;&nbsp;&nbsp;A provider would be created for kubernetes and kubectl to set up the resources to create the kubernetes cluster.  Examples of the kubernetes and kubectl providers would be:
 
+```
 provider "kubernetes" {
   config_context_cluster = google_container_cluster.default.name
   load_config_file       = false
@@ -67,11 +66,13 @@ provider "kubectl" {
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.default.master_auth.0.cluster_ca_certificate)
 }
+```
 
 When those providers have been initialized in the main.tf file, resources that are generated from the providers can be configured as well.  
 
 &nbsp;&nbsp;&nbsp;&nbsp;Kubernetes cluster role bindings would define the role and permissions that the user would have with the service project and therefore the GKE.  An example of a kubernetes cluster role binding would be:
 
+```
 resource "kubernetes_cluster_role_binding" "role_binding" {
   metadata {
     name = "terraform-role-binding"
@@ -89,11 +90,12 @@ resource "kubernetes_cluster_role_binding" "role_binding" {
   }
   
 }
+```
 
 &nbsp;&nbsp;&nbsp;&nbsp;Terraform sometimes does not have the equivalent resource to replicate some of the Kubernetes yaml files.  To work around this, the kubectl resource can be used to apply the yaml files.  First a directory for the yaml files would need to be created in the Terraform directory, typically it would be named kubernetes.  Then the yaml files that do not have a Terraform equivalent would be added into the directory, and they would be applied by the resources below.
 
 data "kubectl_filename_list" "manifests" {
-    pattern = "./kubernetes/*.yaml"
+  pattern = "./kubernetes/*.yaml"
 }
  
 resource "kubectl_manifest" "kubernetes_cert" {
@@ -101,7 +103,25 @@ resource "kubectl_manifest" "kubernetes_cert" {
     yaml_body = file(element(data.kubectl_filename_list.manifests.matches, count.index))
 }
 
-&nbsp;&nbsp;&nbsp;&nbsp;Secrets
+&nbsp;&nbsp;&nbsp;&nbsp;Kubernetes secrets can be added to services ran under GKE through the kubenetes_secret resource.  The secret will allow passwords to be added to the services, for example, in this instance a username and password was added to the Prometheus service.  To do this, an htpasswd file was generated online and added to the Terraform directory.  After adding that, the kubernetes_secret resource was added to main.tf, looking like below:
+
+```
+resource "kubernetes_secret" "basic-auth" {
+  metadata {
+        name      = "some-secret"
+        namespace = "default"
+        labels = {
+          "sensitive" = "true"
+          "app"       = "prometheus"
+        }
+      }
+  data = {
+    "auth" = file("./auth")
+  }
+}
+```
+
+That secret could now be used on the the various services in the GKE cluster.  This secret is added to the Prometheus service by adding it to the Prometheus Ingress by use of annotations.
 
 \
 IV. Helm\
