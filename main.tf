@@ -83,7 +83,7 @@ resource "kubernetes_cluster_role_binding" "role_binding" {
   }
   subject {
     kind      = "User"
-    name      = "617377547426-compute@developer.gserviceaccount.com"
+    name      = "your-compute-service-account@developer.gserviceaccount.com"
     api_group = ""
     namespace = "default"
   }
